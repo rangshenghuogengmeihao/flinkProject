@@ -2,13 +2,34 @@ package com.shiguang.apitest.sinttest
 
 
 import com.mysql.jdbc.PreparedStatement
-import com.shiguang.apitest.SensorReading
+import com.shiguang.apitest.{MySensorSource, SensorReading}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.{RichSinkFunction, SinkFunction}
 import org.apache.flink.streaming.api.scala._
 
 import java.sql
 import java.sql.{Connection, DriverManager}
+
+
+object JdbcSinkTest {
+  def main(args: Array[String]): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val inputStream = env.readTextFile("src/main/resources/sensor.txt")
+
+    val stream = env.addSource(new MySensorSource())
+
+    val dataStream = inputStream.map(
+      data => {
+        val arr = data.split(",")
+        SensorReading(arr(0),arr(1).toLong,arr(2).toDouble)
+      }
+    )
+
+    stream.addSink( new MyJdbcSinkFunc )
+
+    env.execute("jdbc sink test")
+  }
+}
 
 class MyJdbcSinkFunc() extends RichSinkFunction[SensorReading]{
   //  定义连接、预编译语句
@@ -17,7 +38,7 @@ class MyJdbcSinkFunc() extends RichSinkFunction[SensorReading]{
   var updateStmt: sql.PreparedStatement = _
 
   override def open(parameters: Configuration): Unit = {
-    conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test","root","123456")
+    conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test","root","root")
     insertStmt = conn.prepareStatement("insert into sensor_temp (id, temp) values (?,?)")
     updateStmt = conn.prepareStatement("update sensor_temp set temp = ? where id = ?")
   }
@@ -39,24 +60,5 @@ class MyJdbcSinkFunc() extends RichSinkFunction[SensorReading]{
     insertStmt.close()
     updateStmt.close()
     conn.close()
-  }
-}
-object JdbcSinkTest {
-  def main(args: Array[String]): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val inputStream = env.readTextFile("src/main/resources/sensor.txt")
-
-    env.addSource( new MySensorSource())
-
-    val dataStream = inputStream.map(
-      data => {
-        val arr = data.split(",")
-        SensorReading(arr(0),arr(1).toLong,arr(2).toDouble)
-      }
-    )
-
-    dataStream.addSink( new MyJdbcSinkFunc )
-
-    env.execute("jdbc sink test")
   }
 }
