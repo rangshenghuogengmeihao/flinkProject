@@ -9,6 +9,7 @@ import org.apache.flink.streaming.connectors.redis.common.mapper.{RedisCommand, 
 object RedisSinkTest {
   def main(args: Array[String]): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val inputStream = env.readTextFile("src/main/resources/sensor.txt")
 
     //    先转换成样例类类型
@@ -19,14 +20,13 @@ object RedisSinkTest {
       })
 
     val conf = new FlinkJedisPoolConfig.Builder()
-      .setHost("")
+      .setHost("192.168.80.3")
       .setPort(6379)
       .build()
 
 
-
     dataStream.addSink(
-      new RedisSink[SensorReading]( conf,new MyRedisMapper)
+      new RedisSink[SensorReading](conf, new MyRedisMapper)
     )
 
     env.execute("redis sink test")
@@ -34,19 +34,19 @@ object RedisSinkTest {
 }
 
 //    定义一个RedisMapper
-class MyRedisMapper extends RedisMapper[SensorReading]{
-//  定义保存数据写入Redis的命令,HSET 表明 key value
+class MyRedisMapper extends RedisMapper[SensorReading] {
+  //  定义保存数据写入Redis的命令,HSET 表明 key value
   override def getCommandDescription: RedisCommandDescription = {
-    new RedisCommandDescription(RedisCommand.HSET,"sensor_temp")
+    new RedisCommandDescription(RedisCommand.HSET, "sensor_temp")
   }
 
-//  将温度值指定为value
+  //  将温度值指定为value
   override def getKeyFromData(data: SensorReading): String = {
     data.temperature.toString
   }
 
-//将id指定为key
+  //将id指定为key
   override def getValueFromData(data: SensorReading): String = {
-      data.id
+    data.id
   }
 }
