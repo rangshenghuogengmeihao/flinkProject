@@ -71,7 +71,6 @@ class MyRedisMapper extends RedisMapper[(String, String)] {
     new RedisCommandDescription(RedisCommand.SET)
   }
 
-
   //  于指定接收到的数据中哪部分作为key
   override def getKeyFromData(data: (String, String)): String = {
     data._1
